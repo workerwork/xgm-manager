@@ -14,18 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.create_tag.outputs.tag }}
-
     steps:
       - uses: actions/checkout@v4
-        
-      - name: Create Git Tag
+
+      - name: Configure Git User
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Create and Push Git Tag
         id: create_tag
         run: |
           TAG=v$(date +'%Y%m%d%H%M%S')
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git tag -a $TAG -m "Release $TAG"
-          git push origin $TAG
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,70 +40,73 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
         include:
           - os: macos-latest
-            tauri-target: macos
-            artifact-path: src-tauri/target/release/bundle/macos/*.{app,dmg}
+            rust-target: aarch64-apple-darwin
+            bundle-dir: src-tauri/target/release/bundle/macos
+            artifacts: "*.app,*.dmg"
           - os: windows-latest
-            tauri-target: windows
-            artifact-path: src-tauri/target/release/bundle/msi/*.msi
+            rust-target: x86_64-pc-windows-msvc
+            bundle-dir: src-tauri/target/release/bundle/msi
+            artifacts: "*.msi"
           - os: ubuntu-latest
-            tauri-target: linux
-            artifact-path: src-tauri/target/release/bundle/appimage/*.AppImage
-
+            rust-target: x86_64-unknown-linux-gnu
+            bundle-dir: src-tauri/target/release/bundle/appimage
+            artifacts: "*.AppImage"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js 18
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: Setup Rust
+      - name: Setup Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
+      - name: Add Rust Target
+        run: rustup target add ${{ matrix.rust-target }}
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm install
 
       - name: Build Tauri App
-        run: npm run tauri build -- --target ${{ matrix.tauri-target }}
+        run: npm run tauri build -- --target ${{ matrix.rust-target }}
 
       - name: Package Artifacts
         run: |
-          mkdir -p dist/${{ matrix.tauri-target }}
-          cp ${{ matrix.artifact-path }} dist/${{ matrix.tauri-target }}/
+          mkdir -p dist/${{ matrix.os }}
+          cp -R ${{ matrix.bundle-dir }}/* dist/${{ matrix.os }}/
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-build-${{ matrix.tauri-target }}
-          path: dist/${{ matrix.tauri-target }}/*
+          name: tauri-build-${{ matrix.os }}
+          path: dist/${{ matrix.os }}/*
 
   release:
     needs: [prepare, build]
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Fetch tags
+      - name: Fetch All Tags
         run: git fetch --tags --force
 
-      - name: Download All Artifacts
+      - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./downloaded-artifacts
+          path: downloaded-artifacts
 
-      - name: Create Release and Upload Assets
+      - name: Create GitHub Release & Upload Assets
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           files: |
-            downloaded-artifacts/tauri-build-macos/**/*
-            downloaded-artifacts/tauri-build-windows/**/*
-            downloaded-artifacts/tauri-build-linux/**/*
+            downloaded-artifacts/tauri-build-macos-latest/**/*.*
+            downloaded-artifacts/tauri-build-windows-latest/**/*.*
+            downloaded-artifacts/tauri-build-ubuntu-latest/**/*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
