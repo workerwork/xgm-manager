@@ -1,4 +1,4 @@
-name: 'Publish Tauri App'
+name: Publish Tauri App
 
 on:
   workflow_dispatch:
@@ -7,7 +7,23 @@ on:
       - main
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version (bash)
+        id: extract_version
+        shell: bash
+        run: |
+          version=$(grep '"version":' src-tauri/tauri.conf.json | head -1 | cut -d '"' -f4)
+          echo "Extracted version: $version"
+          echo "::set-output name=version::$version"
+
   publish-tauri:
+    needs: prepare
     permissions:
       contents: write
     strategy:
@@ -56,23 +72,6 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Extract version (Unix)
-        if: runner.os != 'Windows'
-        id: version_unix
-        shell: bash
-        run: |
-          version=$(grep '"version":' src-tauri/tauri.conf.json | head -1 | cut -d '"' -f4)
-          echo "version=$version" >> $GITHUB_OUTPUT
-
-      - name: Extract version (Windows)
-        if: runner.os == 'Windows'
-        id: version_win
-        shell: pwsh
-        run: |
-          $content = Get-Content src-tauri/tauri.conf.json -Raw
-          $json = $content | ConvertFrom-Json
-          echo "version=$($json.version)" >> $env:GITHUB_OUTPUT
-
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0.5
         with:
@@ -86,8 +85,8 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: app-v${{ steps.version_unix.outputs.version || steps.version_win.outputs.version }}
-          name: "App v${{ steps.version_unix.outputs.version || steps.version_win.outputs.version }}"
+          tag_name: app-v${{ needs.prepare.outputs.version }}
+          name: "App v${{ needs.prepare.outputs.version }}"
           body: "See the assets to download this version and install."
           draft: true
           prerelease: false
