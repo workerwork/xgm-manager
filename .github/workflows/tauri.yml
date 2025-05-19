@@ -1,4 +1,4 @@
-name: Build and Release xgm-manager
+name: Build and Release Tauri App
 
 on:
   push:
@@ -17,10 +17,10 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js 18
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
@@ -41,26 +41,27 @@ jobs:
           mkdir -p dist
           cp src-tauri/target/release/bundle/*/* dist/
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: macos-build
+          name: tauri-build
           path: dist/
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          path: dist
+          name: tauri-build
+          path: ./downloaded-artifacts
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/**/*
+          files: ./downloaded-artifacts/**/*.{dmg,exe,AppImage}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
