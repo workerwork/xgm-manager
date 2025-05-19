@@ -1,0 +1,39 @@
+name: Build xgm-manager
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Tauri App
+        run: npm run tauri build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.platform }}-build
+          path: src-tauri/target/release/bundle
