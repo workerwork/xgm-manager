@@ -69,6 +69,7 @@ jobs:
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.create_tag.outputs.tag }}
           files: ./downloaded-artifacts/**/*.{dmg,exe,AppImage}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
