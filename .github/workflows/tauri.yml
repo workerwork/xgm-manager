@@ -2,8 +2,7 @@ name: Build and Release Tauri App (Multi-Platform)
 
 on:
   push:
-    branches:
-      - 'main'
+    branches: [ 'main' ]
   workflow_dispatch:
 
 permissions:
@@ -42,15 +41,13 @@ jobs:
           - os: macos-latest
             rust-target: aarch64-apple-darwin
             bundle-dir: src-tauri/target/release/bundle/macos
-            artifacts: "*.app,*.dmg"
           - os: windows-latest
             rust-target: x86_64-pc-windows-msvc
             bundle-dir: src-tauri/target/release/bundle/msi
-            artifacts: "*.msi"
           - os: ubuntu-latest
             rust-target: x86_64-unknown-linux-gnu
             bundle-dir: src-tauri/target/release/bundle/appimage
-            artifacts: "*.AppImage"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -65,19 +62,22 @@ jobs:
           toolchain: stable
           override: true
 
-      # 仅在 Linux 环境下安装系统依赖
-      - name: Install Linux Dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libglib2.0-dev pkg-config libwebkit2gtk-4.0-dev libssl-dev
-
       - name: Add Rust Target
         run: rustup target add ${{ matrix.rust-target }}
 
-      - name: Install JavaScript Dependencies
+      - name: Install JS Dependencies
         run: npm install
 
+      - name: Install Linux System Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libglib2.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev
+          
       - name: Build Tauri App
         run: npm run tauri build -- --target ${{ matrix.rust-target }}
 
@@ -100,13 +100,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch All Tags
+      - name: Fetch Tags
         run: git fetch --tags --force
 
-      - name: Download All Artifacts
+      - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: downloaded-artifacts
+          path: ./downloaded-artifacts
 
       - name: Create GitHub Release & Upload Assets
         uses: softprops/action-gh-release@v1
@@ -118,6 +118,3 @@ jobs:
             downloaded-artifacts/tauri-build-ubuntu-latest/**/*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
-  
