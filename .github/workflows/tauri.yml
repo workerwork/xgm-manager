@@ -56,32 +56,40 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      # 6. 缓存 Rust crates 与构建产物
+      # 6. 缓存 Rust 构建产物
       - name: Cache Rust crates
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # 7. 构建 Tauri 应用
-      - name: Build Tauri App
+      # 7. 提取版本号
+      - name: Extract version from tauri.conf.json
+        id: version
+        run: |
+          version=$(grep '"version":' src-tauri/tauri.conf.json | head -1 | cut -d '"' -f4)
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      # 8. 构建并创建 GitHub Draft Release
+      - name: Build and Publish Tauri App
         uses: tauri-apps/tauri-action@v0.5
         with:
           runner: 'yarn'
           workingDirectory: '.'
           args: ${{ matrix.args }}
           release: true
-          tagName: app-v__VERSION__
-          releaseName: 'App v__VERSION__'
+          tagName: app-v${{ steps.version.outputs.version }}
+          releaseName: 'App v${{ steps.version.outputs.version }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ✅ 8. 上传构建产物到 Release
+      # 9. 上传构建产物到 Release（已存在的 Draft Release）
       - name: Upload Tauri bundles to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: app-v${{ steps.version.outputs.version }}
           files: |
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.dmg
@@ -90,10 +98,3 @@ jobs:
             src-tauri/target/release/bundle/**/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # ✅ 9. 可选：上传产物为 artifact（便于调试下载）
-      - name: Upload bundle as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tauri-bundle-${{ matrix.platform }}
-          path: src-tauri/target/release/bundle
