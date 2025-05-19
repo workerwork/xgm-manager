@@ -25,18 +25,19 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
+      # 1. 获取代码
       - uses: actions/checkout@v4
 
-      # —— 1. 锁文件检查 —— 
-      - name: Ensure yarn.lock exists
+      # 2. 锁文件检查：确保已提交 yarn.lock
+      - name: Verify yarn.lock presence
         run: |
           if [ ! -f yarn.lock ]; then
-            echo "Error: yarn.lock not found. Please run 'yarn install' locally and commit yarn.lock."
+            echo "::error ::yarn.lock not found. Run 'yarn install' locally and commit yarn.lock."
             exit 1
           fi
 
-      # —— 2. 安装系统依赖（仅 Ubuntu） —— 
-      - name: Install Linux system deps
+      # 3. Ubuntu 系统依赖（仅 Linux）
+      - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
@@ -46,30 +47,30 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      # —— 3. Node.js + Yarn 缓存 —— 
+      # 4. Node.js + Yarn 缓存
       - name: Setup Node.js (with Yarn cache)
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'yarn'
+          cache: 'yarn'             # 内置缓存依赖于 yarn.lock :contentReference[oaicite:1]{index=1}
 
-      # —— 4. 安装前端依赖 —— 
+      # 5. 安装前端依赖
       - name: Install frontend dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile  # 保证使用锁文件，且不修改它 :contentReference[oaicite:2]{index=2}
 
-      # —— 5. 安装 Rust toolchain —— 
+      # 6. 安装 Rust toolchain
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      # —— 6. 缓存 Rust crates —— 
+      # 7. 缓存 Rust crates 与构建产物
       - name: Cache Rust crates
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # —— 7. 发布 Tauri —— 
+      # 8. 发布 Tauri 应用
       - name: Publish Tauri App
         uses: tauri-apps/tauri-action@v0.5
         with:
