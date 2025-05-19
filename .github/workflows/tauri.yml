@@ -14,9 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
+          - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
+          - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
             args: ''
@@ -27,40 +27,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+      # —— 1. 锁文件检查 —— 
+      - name: Ensure yarn.lock exists
+        run: |
+          if [ ! -f yarn.lock ]; then
+            echo "Error: yarn.lock not found. Please run 'yarn install' locally and commit yarn.lock."
+            exit 1
+          fi
+
+      # —— 2. 安装系统依赖（仅 Ubuntu） —— 
+      - name: Install Linux system deps
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
-      - name: setup node
+      # —— 3. Node.js + Yarn 缓存 —— 
+      - name: Setup Node.js (with Yarn cache)
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
-          cache: 'yarn' # Set this to npm, yarn or pnpm.
+          node-version: 'lts/*'
+          cache: 'yarn'
 
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable # Set this to dtolnay/rust-toolchain@nightly
+      # —— 4. 安装前端依赖 —— 
+      - name: Install frontend dependencies
+        run: yarn install --frozen-lockfile
+
+      # —— 5. 安装 Rust toolchain —— 
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: Rust cache
+      # —— 6. 缓存 Rust crates —— 
+      - name: Cache Rust crates
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      - name: install frontend dependencies
-        # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
-        run: yarn install # change this to npm or pnpm depending on which one you use.
-
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # —— 7. 发布 Tauri —— 
+      - name: Publish Tauri App
+        uses: tauri-apps/tauri-action@v0.5
         with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          runner: 'yarn'
+          workingDirectory: '.'
+          args: ${{ matrix.args }}
+          release: true
+          tag: 'app-v__VERSION__'
           releaseName: 'App v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
