@@ -44,11 +44,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'yarn'             # 内置缓存依赖于 yarn.lock :contentReference[oaicite:1]{index=1}
+          cache: 'yarn'
 
       # 4. 安装前端依赖
       - name: Install frontend dependencies
-        run: yarn install --frozen-lockfile  # 保证使用锁文件，且不修改它 :contentReference[oaicite:2]{index=2}
+        run: yarn install --frozen-lockfile
 
       # 5. 安装 Rust toolchain
       - name: Install Rust stable
@@ -62,8 +62,8 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      # 7. 发布 Tauri 应用
-      - name: Publish Tauri App
+      # 7. 构建 Tauri 应用
+      - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0.5
         with:
           runner: 'yarn'
@@ -77,3 +77,23 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ✅ 8. 上传构建产物到 Release
+      - name: Upload Tauri bundles to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ✅ 9. 可选：上传产物为 artifact（便于调试下载）
+      - name: Upload bundle as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-bundle-${{ matrix.platform }}
+          path: src-tauri/target/release/bundle
