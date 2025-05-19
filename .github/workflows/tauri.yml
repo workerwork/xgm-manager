@@ -2,8 +2,8 @@ name: Build and Release Tauri App
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - 'main'
   workflow_dispatch:
 
 permissions:
@@ -11,10 +11,7 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        platform: [macos-latest]
-    runs-on: ${{ matrix.platform }}
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -36,10 +33,14 @@ jobs:
       - name: Build Tauri App
         run: npm run tauri build
 
-      - name: Ensure Finder permissions
+      - name: Create Git Tag
+        id: create_tag
         run: |
-          osascript -e 'tell application "Finder" to activate'
-          sleep 2
+          TAG=v$(date +'%Y%m%d%H%M%S')
+          git tag -a $TAG -m "Release $TAG"
+          git push origin $TAG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package Build Artifacts
         run: |
