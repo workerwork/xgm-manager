@@ -1,148 +1,51 @@
-name: Build and Release Tauri App (Multi-Platform)
+name: Build & Release Tauri App
 
 on:
   push:
-    branches:
-      - 'main'
+    branches: [ 'main' ]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.create_tag.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure Git User
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-
-      - name: Create and Push Git Tag
-        id: create_tag
-        run: |
-          TAG=v$(date +'%Y%m%d%H%M%S')
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "$TAG"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build:
-    needs: prepare
-    runs-on: ${{ matrix.os }}
+  publish-tauri:
+    # 并行三平台
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
         include:
-          - os: macos-latest
-            rust-target: aarch64-apple-darwin
-            bundle-dir: src-tauri/target/release/bundle/macos
-          - os: windows-latest
-            rust-target: x86_64-pc-windows-msvc
-            bundle-dir: src-tauri/target/release/bundle/msi
-          - os: ubuntu-latest
-            rust-target: x86_64-unknown-linux-gnu
-            bundle-dir: src-tauri/target/release/bundle/appimage
+          - platform: macos-latest   # Apple Silicon + Intel 会自动双构
+            targets: [ 'universal-apple-darwin' ]
+          - platform: windows-latest
+            targets: [ 'x86_64-pc-windows-msvc' ]
+          - platform: ubuntu-latest
+            targets: [ 'x86_64-unknown-linux-gnu' ]
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # —— Rust 依赖缓存 —— 
-      - name: Cache Rust crates
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      # —— Node.js + npm 缓存 —— 
-      - name: Setup Node.js (含 npm 缓存)
+      - name: Use Node.js 18 (with npm cache)
         uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: 'npm'
 
-      - name: Setup Rust Toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Publish Tauri App
+        uses: tauri-apps/tauri-action@v0.5
         with:
-          toolchain: stable
-          override: true
-
-      - name: Add Rust Target
-        run: rustup target add ${{ matrix.rust-target }}
-
-      - name: Install JS Dependencies
-        run: npm ci
-
-      - name: Install Linux System Dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            pkg-config \
-            libglib2.0-dev \
-            libwebkit2gtk-4.1-dev \
-            libjavascriptcoregtk-4.1-dev \
-            libssl-dev
-
-      - name: Build Tauri App
-        run: npm run tauri build -- --target ${{ matrix.rust-target }}
-
-      - name: Package Artifacts
-        run: |
-          mkdir -p dist/${{ matrix.os }}
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            for f in ${{ matrix.bundle-dir }}/*; do
-              [ -e "$f" ] && cp -R "$f" dist/${{ matrix.os }}/
-            done
-          elif [ "${{ matrix.os }}" = "windows-latest" ]; then
-            for f in ${{ matrix.bundle-dir }}/*.msi; do
-              [ -e "$f" ] && cp "$f" dist/${{ matrix.os }}/
-            done
-          else
-            for f in ${{ matrix.bundle-dir }}/*.AppImage; do
-              [ -e "$f" ] && cp "$f" dist/${{ matrix.os }}/
-            done
-          fi
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: tauri-build-${{ matrix.os }}
-          path: dist/${{ matrix.os }}/*
-
-  release:
-    needs: [prepare, build]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Fetch All Tags
-        run: git fetch --tags --force
-
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./downloaded-artifacts
-
-      - name: Create GitHub Release & Upload Assets
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ needs.prepare.outputs.tag }}
-          files: |
-            downloaded-artifacts/tauri-build-macos-latest/**/*.*
-            downloaded-artifacts/tauri-build-windows-latest/**/*.*
-            downloaded-artifacts/tauri-build-ubuntu-latest/**/*.*
+          # 要构建的目标，Action 会自动为每个平台安装对应 Rust target
+          runner: 'npm'
+          workingDirectory: '.'      # 若你的 Tauri 在子目录，改为 'src-tauri'
+          targets: ${{ toJson(matrix.targets) }}
+          # 版本来源：package.json version 或者手动指定
+          tag: ${{ github.ref_name }}  # 例如 'v1.2.3'；或改为 package.json 自动读取
+          release: true               # 自动创建/更新 GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 可选：Windows/macOS 签名私钥
+          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
