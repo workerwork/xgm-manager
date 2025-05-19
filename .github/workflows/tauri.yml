@@ -12,6 +12,8 @@ permissions:
 jobs:
   build:
     runs-on: macos-latest
+    outputs:
+      tag: ${{ steps.create_tag.outputs.tag }}  # 定义job输出变量
 
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +41,7 @@ jobs:
           TAG=v$(date +'%Y%m%d%H%M%S')
           git tag -a $TAG -m "Release $TAG"
           git push origin $TAG
+          echo "tag=$TAG" >> $GITHUB_OUTPUT  # 将tag设置为步骤输出
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -60,9 +63,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史记录和标签
 
       - name: Fetch tags
-        run: git fetch --tags
+        run: git fetch --tags --force  # 强制获取所有标签
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -73,7 +78,7 @@ jobs:
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.create_tag.outputs.tag }}
+          tag_name: ${{ needs.build.outputs.tag }}  # 正确引用build job的输出变量
           files: ./downloaded-artifacts/**/*.{dmg,exe,AppImage}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
