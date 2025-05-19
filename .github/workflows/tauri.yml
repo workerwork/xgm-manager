@@ -64,10 +64,18 @@ jobs:
         with:
           toolchain: stable
           override: true
+
+      # 仅在 Linux 环境下安装系统依赖
+      - name: Install Linux Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libglib2.0-dev pkg-config libwebkit2gtk-4.0-dev libssl-dev
+
       - name: Add Rust Target
         run: rustup target add ${{ matrix.rust-target }}
 
-      - name: Install Dependencies
+      - name: Install JavaScript Dependencies
         run: npm install
 
       - name: Build Tauri App
@@ -95,7 +103,7 @@ jobs:
       - name: Fetch All Tags
         run: git fetch --tags --force
 
-      - name: Download Build Artifacts
+      - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
           path: downloaded-artifacts
@@ -110,3 +118,6 @@ jobs:
             downloaded-artifacts/tauri-build-ubuntu-latest/**/*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+  
