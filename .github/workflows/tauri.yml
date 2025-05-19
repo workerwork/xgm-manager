@@ -36,6 +36,11 @@ jobs:
       - name: Build Tauri App
         run: npm run tauri build
 
+      - name: Ensure Finder permissions
+        run: |
+          osascript -e 'tell application "Finder" to activate'
+          sleep 2
+
       - name: Package Build Artifacts
         run: |
           mkdir -p dist
