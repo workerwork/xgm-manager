@@ -27,7 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Linux 依赖
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -38,7 +37,6 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      # 设置 Node.js
       - name: Setup Node.js (with Yarn cache)
         uses: actions/setup-node@v4
         with:
@@ -48,38 +46,33 @@ jobs:
       - name: Install frontend dependencies
         run: yarn install --frozen-lockfile
 
-      # 设置 Rust
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      # 缓存 Rust 依赖
       - name: Cache Rust crates
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # 提取版本（Linux/macOS）
       - name: Extract version (Unix)
         if: runner.os != 'Windows'
-        id: version
+        id: version_unix
         shell: bash
         run: |
           version=$(grep '"version":' src-tauri/tauri.conf.json | head -1 | cut -d '"' -f4)
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      # 提取版本（Windows）
       - name: Extract version (Windows)
         if: runner.os == 'Windows'
-        id: version
+        id: version_win
         shell: pwsh
         run: |
           $content = Get-Content src-tauri/tauri.conf.json -Raw
           $json = $content | ConvertFrom-Json
           echo "version=$($json.version)" >> $env:GITHUB_OUTPUT
 
-      # 构建并发布（tauri-action）
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0.5
         with:
@@ -90,12 +83,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 手动发布 GitHub Release（包括产物上传）
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: app-v${{ steps.version.outputs.version }}
-          name: "App v${{ steps.version.outputs.version }}"
+          tag_name: app-v${{ steps.version_unix.outputs.version || steps.version_win.outputs.version }}
+          name: "App v${{ steps.version_unix.outputs.version || steps.version_win.outputs.version }}"
           body: "See the assets to download this version and install."
           draft: true
           prerelease: false
