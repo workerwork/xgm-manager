@@ -28,15 +28,7 @@ jobs:
       # 1. 获取代码
       - uses: actions/checkout@v4
 
-      # 2. 锁文件检查：确保已提交 yarn.lock
-      - name: Verify yarn.lock presence
-        run: |
-          if [ ! -f yarn.lock ]; then
-            echo "::error ::yarn.lock not found. Run 'yarn install' locally and commit yarn.lock."
-            exit 1
-          fi
-
-      # 3. Ubuntu 系统依赖（仅 Linux）
+      # 2. Ubuntu 系统依赖（仅 Linux）
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -47,30 +39,30 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      # 4. Node.js + Yarn 缓存
+      # 3. Node.js + Yarn 缓存
       - name: Setup Node.js (with Yarn cache)
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
           cache: 'yarn'             # 内置缓存依赖于 yarn.lock :contentReference[oaicite:1]{index=1}
 
-      # 5. 安装前端依赖
+      # 4. 安装前端依赖
       - name: Install frontend dependencies
         run: yarn install --frozen-lockfile  # 保证使用锁文件，且不修改它 :contentReference[oaicite:2]{index=2}
 
-      # 6. 安装 Rust toolchain
+      # 5. 安装 Rust toolchain
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      # 7. 缓存 Rust crates 与构建产物
+      # 6. 缓存 Rust crates 与构建产物
       - name: Cache Rust crates
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # 8. 发布 Tauri 应用
+      # 7. 发布 Tauri 应用
       - name: Publish Tauri App
         uses: tauri-apps/tauri-action@v0.5
         with:
