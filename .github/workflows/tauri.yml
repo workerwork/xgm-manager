@@ -10,12 +10,11 @@ permissions:
 
 jobs:
   publish-tauri:
-    # 并行三平台
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest   # Apple Silicon + Intel 会自动双构
+          - platform: macos-latest
             targets: [ 'universal-apple-darwin' ]
           - platform: windows-latest
             targets: [ 'x86_64-pc-windows-msvc' ]
@@ -34,18 +33,18 @@ jobs:
           node-version: 18
           cache: 'npm'
 
+      - name: Install dependencies
+        # 确保 @tauri/cli 被安装
+        run: npm ci
+
       - name: Publish Tauri App
+        # 这一步会调用 node_modules/.bin/tauri
         uses: tauri-apps/tauri-action@v0.5
         with:
-          # 要构建的目标，Action 会自动为每个平台安装对应 Rust target
           runner: 'npm'
-          workingDirectory: '.'      # 若你的 Tauri 在子目录，改为 'src-tauri'
+          workingDirectory: '.'
           targets: ${{ toJson(matrix.targets) }}
-          # 版本来源：package.json version 或者手动指定
-          tag: ${{ github.ref_name }}  # 例如 'v1.2.3'；或改为 package.json 自动读取
-          release: true               # 自动创建/更新 GitHub Release
+          release: true
+          tag: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 可选：Windows/macOS 签名私钥
-          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
