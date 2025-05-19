@@ -25,10 +25,9 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      # 1. 获取代码
       - uses: actions/checkout@v4
 
-      # 2. Ubuntu 系统依赖（仅 Linux）
+      # Linux 依赖
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -39,57 +38,67 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      # 3. Node.js + Yarn 缓存
+      # 设置 Node.js
       - name: Setup Node.js (with Yarn cache)
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
           cache: 'yarn'
 
-      # 4. 安装前端依赖
       - name: Install frontend dependencies
         run: yarn install --frozen-lockfile
 
-      # 5. 安装 Rust toolchain
+      # 设置 Rust
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      # 6. 缓存 Rust 构建产物
+      # 缓存 Rust 依赖
       - name: Cache Rust crates
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # 7. 提取版本号
-      - name: Extract version from tauri.conf.json
+      # 提取版本（Linux/macOS）
+      - name: Extract version (Unix)
+        if: runner.os != 'Windows'
         id: version
+        shell: bash
         run: |
           version=$(grep '"version":' src-tauri/tauri.conf.json | head -1 | cut -d '"' -f4)
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      # 8. 构建并创建 GitHub Draft Release
-      - name: Build and Publish Tauri App
+      # 提取版本（Windows）
+      - name: Extract version (Windows)
+        if: runner.os == 'Windows'
+        id: version
+        shell: pwsh
+        run: |
+          $content = Get-Content src-tauri/tauri.conf.json -Raw
+          $json = $content | ConvertFrom-Json
+          echo "version=$($json.version)" >> $env:GITHUB_OUTPUT
+
+      # 构建并发布（tauri-action）
+      - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0.5
         with:
           runner: 'yarn'
           workingDirectory: '.'
           args: ${{ matrix.args }}
           release: true
-          tagName: app-v${{ steps.version.outputs.version }}
-          releaseName: 'App v${{ steps.version.outputs.version }}'
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 9. 上传构建产物到 Release（已存在的 Draft Release）
-      - name: Upload Tauri bundles to GitHub Release
+      # 手动发布 GitHub Release（包括产物上传）
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: app-v${{ steps.version.outputs.version }}
+          name: "App v${{ steps.version.outputs.version }}"
+          body: "See the assets to download this version and install."
+          draft: true
+          prerelease: false
           files: |
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.dmg
