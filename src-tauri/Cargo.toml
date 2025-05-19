@@ -1,0 +1,34 @@
+[package]
+name = "app"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["workerwork"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.2.0", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.5.0", features = [] }
+tauri-plugin-log = "2.0.0-rc"
+dashmap = "6.1.0"
+chrono = "0.4"
+proc-macro2 = "1.0"
+reqwest = { version = "0.12.15", features = ["blocking", "json", "multipart"] }
+tauri-plugin-dialog = "2"
+# pyo3 = { version = "0.24.2", features = ["extension-module"] }
+# tokio = { version = "1.16.1", features = ["full"] }
+config = "0.15.11"
+once_cell = "1.18.0"

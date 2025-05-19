@@ -1,0 +1,8 @@
+# You can modify it to suit your needs.
+
+[server]
+http_port = 8000
+udp_port = 5010
+
+[jupyter]
+workspace_dir = "E:\\work\\xgm\\qa24\\systemq-master_20241111"
