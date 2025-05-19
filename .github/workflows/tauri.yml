@@ -22,6 +22,15 @@ jobs:
           echo "Extracted version: $version"
           echo "::set-output name=version::$version"
 
+      - name: Create Git tag for release
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag app-v${{ steps.extract_version.outputs.version }}
+          git push origin app-v${{ steps.extract_version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish-tauri:
     needs: prepare
     permissions:
