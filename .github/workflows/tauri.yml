@@ -57,8 +57,12 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch tags
+        run: git fetch --tags
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
