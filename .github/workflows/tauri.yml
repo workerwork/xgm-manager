@@ -1,4 +1,4 @@
-name: 'Publish Tauri App'
+name: Publish Tauri App
 
 on:
   workflow_dispatch:
@@ -7,7 +7,32 @@ on:
       - main
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version (bash)
+        id: extract_version
+        shell: bash
+        run: |
+          version=$(grep '"version":' src-tauri/tauri.conf.json | head -1 | cut -d '"' -f4)
+          echo "Extracted version: $version"
+          echo "::set-output name=version::$version"
+
+      - name: Create Git tag for release
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag app-v${{ steps.extract_version.outputs.version }}
+          git push origin app-v${{ steps.extract_version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish-tauri:
+    needs: prepare
     permissions:
       contents: write
     strategy:
@@ -25,18 +50,8 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      # 1. 获取代码
       - uses: actions/checkout@v4
 
-      # 2. 锁文件检查：确保已提交 yarn.lock
-      - name: Verify yarn.lock presence
-        run: |
-          if [ ! -f yarn.lock ]; then
-            echo "::error ::yarn.lock not found. Run 'yarn install' locally and commit yarn.lock."
-            exit 1
-          fi
-
-      # 3. Ubuntu 系统依赖（仅 Linux）
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -47,41 +62,37 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      # 4. Node.js + Yarn 缓存
       - name: Setup Node.js (with Yarn cache)
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'yarn'             # 内置缓存依赖于 yarn.lock :contentReference[oaicite:1]{index=1}
+          cache: 'yarn'
 
-      # 5. 安装前端依赖
       - name: Install frontend dependencies
-        run: yarn install --frozen-lockfile  # 保证使用锁文件，且不修改它 :contentReference[oaicite:2]{index=2}
+        run: yarn install --frozen-lockfile
 
-      # 6. 安装 Rust toolchain
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      # 7. 缓存 Rust crates 与构建产物
       - name: Cache Rust crates
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # 8. 发布 Tauri 应用
-      - name: Publish Tauri App
-        uses: tauri-apps/tauri-action@v0.5
+      - name: Build and Publish Tauri App
+        uses: tauri-apps/tauri-action@v0.5.20
         with:
+          tagName: app-v${{ needs.prepare.outputs.version }}
+          releaseName: "App v${{ needs.prepare.outputs.version }}"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          releasePrerelease: false
+          args: ${{ matrix.args }}
           runner: 'yarn'
           workingDirectory: '.'
-          args: ${{ matrix.args }}
           release: true
-          tag: 'app-v__VERSION__'
-          releaseName: 'App v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
