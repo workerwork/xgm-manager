@@ -1,4 +1,4 @@
-name: Build xgm-manager
+name: Build and Release xgm-manager
 
 on:
   push:
@@ -32,8 +32,14 @@ jobs:
       - name: Build Tauri App
         run: npm run tauri build
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Package Build Artifacts
+        run: |
+          mkdir -p dist
+          cp src-tauri/target/release/bundle/*/* dist/
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v1
         with:
-          name: ${{ matrix.platform }}-build
-          path: src-tauri/target/release/bundle
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
