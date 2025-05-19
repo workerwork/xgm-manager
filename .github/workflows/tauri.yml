@@ -72,29 +72,18 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Build Tauri App
-        uses: tauri-apps/tauri-action@v0.5
+      - name: Build and Publish Tauri App
+        uses: tauri-apps/tauri-action@v0.5.20
         with:
+          tagName: app-v${{ needs.prepare.outputs.version }}
+          releaseName: "App v${{ needs.prepare.outputs.version }}"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          releasePrerelease: false
+          args: ${{ matrix.args }}
           runner: 'yarn'
           workingDirectory: '.'
-          args: ${{ matrix.args }}
           release: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: app-v${{ needs.prepare.outputs.version }}
-          name: "App v${{ needs.prepare.outputs.version }}"
-          body: "See the assets to download this version and install."
-          draft: true
-          prerelease: false
-          files: |
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.app
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.AppImage
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
