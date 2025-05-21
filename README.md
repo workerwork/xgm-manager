@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/workerwork/xgm-manager/actions/workflows/tauri.yml/badge.svg)](https://github.com/workerwork/xgm-manager/actions)
 [![Release](https://img.shields.io/github/v/release/workerwork/xgm-manager?include_prereleases)](https://github.com/workerwork/xgm-manager/releases)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/workerwork/xgm-manager/releases)
 
 XGM Manager 是一款基于 Tauri 2、Vue 3、Vite 和 TypeScript 的跨平台桌面管理工具，专为 XGM 设备的远程配置、监控和管理而设计。
 
