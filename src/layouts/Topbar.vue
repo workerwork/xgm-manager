@@ -16,10 +16,11 @@ import { useAuth } from '@/composables/useAuth';
 
 const { user, logout } = useAuth();
 
-const handleLogout = () => {
+const handleLogout = (): void => {
   logout();
 };
 </script>
+
 
 <style scoped>
 .topbar {

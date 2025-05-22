@@ -15,19 +15,11 @@
 </template>
 
 
-<script lang="ts">
+<script setup lang="ts">
 import Topbar from './Topbar.vue';
 import Sidebar from './Sidebar.vue';
-
-
-export default {
-  name: 'DefaultLayout',
-    components: {
-    Topbar,
-    Sidebar
-  }
-};
 </script>
+
 
 <style scoped>
 .layout {

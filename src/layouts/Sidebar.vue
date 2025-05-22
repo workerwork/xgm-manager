@@ -41,69 +41,63 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref } from 'vue';
+<script setup lang="ts">
+import { ref } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 
+// 定义导航菜单项的类型
+interface NavChild {
+  path: string;
+  icon: string;
+  text: string;
+  title: string;
+}
 
-export default defineComponent({
-  name: 'Sidebar',
-  setup() {
-    const { isLoggedIn } = useAuth();
+interface NavItem {
+  text: string;
+  icon: string;
+  expanded: boolean;
+  children?: NavChild[];
+}
 
-    const navItems = ref([
-      {
-        text: '设备管理',
-        icon: '🖥️',
-        expanded: true,
-        children: [
-          { path: '/device', icon: '📋', text: '设备列表', title: '查看所有设备' },
-        ]
-      },
-      {
-        text: '终端管理',
-        icon: '🖥️',
-        expanded: true,
-        children: [
-          { path: '/jupyter', icon: '🧪', text: 'Jupyter', title: 'Jupyter Notebook' },
-        ]
-      },
-      // {
-      //   text: '用户权限管理',
-      //   icon: '👤',
-      //   expanded: false,
-      //   children: [
-      //     { path: '/users/list', icon: '👥', text: '用户列表', title: '管理用户' },
-      //     { path: '/users/roles', icon: '🛡️', text: '角色分配', title: '设置用户角色' },
-      //     { path: '/users/logs', icon: '📝', text: '登录日志', title: '查看登录日志' },
-      //   ]
-      // },
-      // {
-      //   text: '系统设置',
-      //   icon: '🔧',
-      //   expanded: false,
-      //   children: [
-      //     { path: '/settings/params', icon: '⚙️', text: '参数设置', title: '系统参数设置' },
-      //     { path: '/settings/backup', icon: '💾', text: '备份还原', title: '系统备份与还原' },
-      //     { path: '/settings/upgrade', icon: '⬆️', text: '版本升级', title: '升级系统版本' },
-      //   ]
-      // },
-    ]);
+const { isLoggedIn } = useAuth();
 
-    const toggleExpand = (item: any) => {
-      // 点击时展开或折叠子菜单
-      if (!item.children) return;
-      item.expanded = !item.expanded;
-    };
+const navItems = ref<NavItem[]>([
+  {
+    text: '设备管理',
+    icon: '🖥️',
+    expanded: true,
+    children: [
+      { path: '/device', icon: '📋', text: '设备列表', title: '查看所有设备' },
+    ]
+  },
+  {
+    text: '终端管理',
+    icon: '🖥️',
+    expanded: true,
+    children: [
+      { path: '/jupyter', icon: '🧪', text: 'Jupyter', title: 'Jupyter Notebook' },
+    ]
+  },
+  // 你可以按需打开以下菜单
+  // {
+  //   text: '用户权限管理',
+  //   icon: '👤',
+  //   expanded: false,
+  //   children: [
+  //     { path: '/users/list', icon: '👥', text: '用户列表', title: '管理用户' },
+  //     { path: '/users/roles', icon: '🛡️', text: '角色分配', title: '设置用户角色' },
+  //     { path: '/users/logs', icon: '📝', text: '登录日志', title: '查看登录日志' },
+  //   ]
+  // },
+]);
 
-    return {
-      navItems,
-      toggleExpand,
-      isLoggedIn,
-    };
-  }
-});
+function toggleExpand(item: NavItem) {
+  if (!item.children) return;
+  item.expanded = !item.expanded;
+}
 </script>
+
 
 <style scoped>
 :root {
